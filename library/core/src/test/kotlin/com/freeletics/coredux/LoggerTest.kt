@@ -8,7 +8,7 @@ import org.spekframework.spek2.Spek
 import org.spekframework.spek2.style.specification.describe
 
 @ObsoleteCoroutinesApi
-@UseExperimental(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class LoggerTest : Spek({
     describe("A Logger") {
         val storeName = "some-store"

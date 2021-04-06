@@ -1,7 +1,5 @@
 apply plugin: 'java-library'
 apply plugin: 'kotlin'
-apply from: dokka
-apply from: publishing
 
 dependencies {
     api project(":library:core")

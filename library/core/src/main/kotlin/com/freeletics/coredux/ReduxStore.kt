@@ -35,7 +35,6 @@ import kotlin.concurrent.write
  *
  * @return instance of [Store] object
  */
-@UseExperimental(ExperimentalCoroutinesApi::class)
 fun <S: Any, A: Any> CoroutineScope.createStore(
     name: String,
     initialState: S,
@@ -56,7 +55,7 @@ fun <S: Any, A: Any> CoroutineScope.createStore(
 /**
  * Allows to override any store configuration.
  */
-@UseExperimental(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 internal fun <S: Any, A: Any> CoroutineScope.createStoreInternal(
     name: String,
     initialState: S,
@@ -175,7 +174,7 @@ private class CoreduxStore<S: Any, A: Any>(
         }
     }
 
-    @UseExperimental(ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun dispatch(action: A) {
         if (actionsDispatchChannel.isClosedForSend) throw IllegalStateException("CoroutineScope is cancelled")
 

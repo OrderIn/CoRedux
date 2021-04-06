@@ -16,8 +16,8 @@ import org.junit.Assert.fail
 import org.spekframework.spek2.Spek
 import org.spekframework.spek2.style.specification.describe
 
-@ObsoleteCoroutinesApi
-@UseExperimental(ExperimentalCoroutinesApi::class)
+
+@OptIn(ExperimentalCoroutinesApi::class)
 object SimpleStoreTest : Spek({
     describe("A redux store without any side effects") {
         val testScope by memoized { TestCoroutineScope(Job()) }
