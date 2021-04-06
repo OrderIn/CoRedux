@@ -1,7 +1,5 @@
 package com.freeletics.coredux
 
-import com.freeletics.coredux.Action
-import com.freeletics.coredux.INITIAL
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -142,11 +140,11 @@ interface Store<S : Any> {
      * action will consumed on [createStore] [CoroutineScope] context.
      *
      * If `launchMode` for [createStore] is [CoroutineStart.LAZY] dispatched actions will be collected and passed
-     * to reducer on first [observe] call.
+     * to reducer on first [onStateChange] call.
      */
     fun dispatch(action: Action)
 
-    fun observe(): StateFlow<S>
+    fun onStateChange(): StateFlow<S>
 
     fun <T : Action> on(actionClass: KClass<T>): Flow<T>
 }
@@ -175,7 +173,7 @@ private class CoreduxStore<S : Any>(
         }
     }
 
-    override fun observe(): StateFlow<S> {
+    override fun onStateChange(): StateFlow<S> {
         if (reducerCoroutine.isCompleted) throw IllegalStateException("CoroutineScope is cancelled")
 
         lock.withLock {

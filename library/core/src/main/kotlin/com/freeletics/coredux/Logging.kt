@@ -161,10 +161,10 @@ internal class Logger(
         if (loggingEnabled) {
             inputLogEventsChannel.offer(
                 LogEntry(
-                storeName,
-                System.currentTimeMillis(),
-                event()
-            )
+                    storeName,
+                    System.currentTimeMillis(),
+                    event()
+                )
             )
         }
     }

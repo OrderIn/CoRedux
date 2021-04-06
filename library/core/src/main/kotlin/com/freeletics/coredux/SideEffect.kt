@@ -1,6 +1,5 @@
 package com.freeletics.coredux
 
-import com.freeletics.coredux.Action
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.ReceiveChannel
