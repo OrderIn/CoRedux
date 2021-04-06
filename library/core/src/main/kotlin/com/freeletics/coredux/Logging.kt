@@ -159,11 +159,13 @@ internal class Logger(
 
     internal fun logEvent(event: () -> LogEvent) {
         if (loggingEnabled) {
-            inputLogEventsChannel.offer(LogEntry(
+            inputLogEventsChannel.offer(
+                LogEntry(
                 storeName,
                 System.currentTimeMillis(),
                 event()
-            ))
+            )
+            )
         }
     }
 

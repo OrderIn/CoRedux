@@ -1,5 +1,6 @@
 package com.freeletics.coredux
 
+import com.freeletics.coredux.Action
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -11,27 +12,26 @@ import kotlinx.coroutines.launch
  * Simplified version of [SideEffect] that produces on one input action either one output action or no action.
  *
  * @param S states type
- * @param A actions type
  * @param name unique per store instance side effect name
  * @param sideEffect function should check for given `action`/`state` combination and return either [Job]
  * from `handler {}` coroutine function call or `null`, if side effect does not interested
  * in `action` - `state` combination. If `handler {}` coroutine will be called again on new input,
  * while previous invocation still running - old one coroutine will be cancelled.
  */
-class SimpleSideEffect<S : Any, A : Any>(
+class SimpleSideEffect<S : Any>(
     override val name: String,
     private val sideEffect: (
         state: StateAccessor<S>,
-        action: A,
+        action: Action,
         logger: SideEffectLogger,
-        handler: (suspend (name: String) -> A?) -> Job
+        handler: (suspend (name: String) -> Action?) -> Job
     ) -> Job?
-) : SideEffect<S, A> {
+) : SideEffect<S> {
 
     override fun CoroutineScope.start(
-        input: ReceiveChannel<A>,
+        input: ReceiveChannel<Action>,
         stateAccessor: StateAccessor<S>,
-        output: SendChannel<A>,
+        output: SendChannel<Action>,
         logger: SideEffectLogger
     ) = launch(context = CoroutineName(name)) {
         var job: Job? = null
@@ -50,7 +50,12 @@ class SimpleSideEffect<S : Any, A : Any>(
                     cancel()
                 }
                 launch { handler(name)?.let {
-                    logger.logSideEffectEvent { LogEvent.SideEffectEvent.DispatchingToReducer(name, it) }
+                    logger.logSideEffectEvent {
+                        LogEvent.SideEffectEvent.DispatchingToReducer(
+                            name,
+                            it
+                        )
+                    }
                     output.send(it)
                 } }
             }?.let { job = it }
@@ -62,27 +67,26 @@ class SimpleSideEffect<S : Any, A : Any>(
  * Version of [SideEffect], that cancels currently executed [Job] and starts a new one.
  *
  * @param S state type
- * @param A action type
  * @param name unique per store instance side effect name
  * @param sideEffect function should check for given `action`/`state` combination and return either [Job] from
  * `handler {}` function call or `null`, if side effect does not interested in `action`/`state` combination.
  * If `handler {}` function will be called again on new input, while previous returned [Job] is still running -
  * old one [Job] will be cancelled.
  */
-class CancellableSideEffect<S : Any, A : Any>(
+class CancellableSideEffect<S : Any>(
     override val name: String,
     private val sideEffect: (
         state: StateAccessor<S>,
-        action: A,
+        action: Action,
         logger: SideEffectLogger,
-        handler: (CoroutineScope.(name: String, output: SendChannel<A>) -> Unit) -> Job
+        handler: (CoroutineScope.(name: String, output: SendChannel<Action>) -> Unit) -> Job
     ) -> Job?
-) : SideEffect<S, A> {
+) : SideEffect<S> {
 
     override fun CoroutineScope.start(
-        input: ReceiveChannel<A>,
+        input: ReceiveChannel<Action>,
         stateAccessor: StateAccessor<S>,
-        output: SendChannel<A>,
+        output: SendChannel<Action>,
         logger: SideEffectLogger
     ): Job = launch(context = CoroutineName(name)) {
         var job: Job? = null
