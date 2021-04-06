@@ -1,5 +1,7 @@
 # CoRedux
 
+[![](https://jitpack.io/v/OKatrych/CoRedux.svg)](https://jitpack.io/#OKatrych/CoRedux)
+
 Opinionated [Redux](https://redux.js.org/) implementation using [Kotlin](https://kotlinlang.org/) [coroutines](https://github.com/Kotlin/kotlinx.coroutines) inspired by [RxRedux](https://github.com/freeletics/rxredux).
 
 ## Table of content
@@ -11,39 +13,29 @@ Opinionated [Redux](https://redux.js.org/) implementation using [Kotlin](https:/
   - [Side effects](#side-effects)
   - [Implementation details](#implementation-details)
   - [Logging](#logging)
-- [Sample app](#sample-app)
 
 ## Getting started
 
 ### Gradle
 
-All release artifacts are hosted on [Maven Central](https://mvnrepository.com/repos/central):
+All release artifacts are hosted on [Jitpack](https://jitpack.io/#OKatrych/CoRedux/):
 ```gradle
-repositories {
-    mavenCentral()
-}
-
-implementation "com.freeletics.coredux:core:1.1.1"
-```
-
-If you want to use latest snapshot release from `master` branch:
-```gradle
-repositories {
-    // CoRedux snapshot repository
-    maven {
-        url "https://oss.sonatype.org/content/repositories/snapshots/"
+allprojects {
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
     }
 }
 
-implementation "com.freeletics.coredux:core:1.2.0-SNAPSHOT"
+dependencies {
+    implementation 'com.github.OKatrych.CoRedux:core:1.0'
+}
 ```
 
 ### Additional artifacts
 
 Following additional artifacts are also available:
-- `com.freeletics.coredux:log-common:1.1.1` - provides abstract logger `LogSink` implementation
-- `com.freeletics.coredux:log-android:1.1.1` - provides `LogSink` implementation, that utilizes `android.util.Log` class to print log messages
-t- `com.freeletics.coredux:log-timber:1.1.1` - provides `LogSink` implementation, that utilizes [Timber](https://github.com/JakeWharton/timber) logger
+- `com.github.OKatrych.CoRedux:common:1.0` - provides abstract logger `LogSink` implementation
 
 ## What is CoRedux
 
@@ -253,8 +245,3 @@ Types of log events are limited and defined by `LogEvent` sealed class hierarchy
 
 `Store` instance will automatically send log events, while `SideEffect` implementations
 should send log events by themselfs, using provided `logger`.
-
-# Sample app
-
-Сheck `sample/` directory for a sample android app that uses CoRedux to load and
-display most popular java-language repositories and amount of starts they have.
