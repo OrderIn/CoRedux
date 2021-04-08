@@ -1,6 +1,6 @@
 # CoRedux
 
-[![](https://jitpack.io/v/OrderIn/CoRedux.svg)](https://jitpack.io/#OrderIn/CoRedux)
+[![](https://jitpack.io/v/orderin/coredux.svg)](https://jitpack.io/#orderin/coredux)
 
 Opinionated [Redux](https://redux.js.org/) implementation using [Kotlin](https://kotlinlang.org/) [coroutines](https://github.com/Kotlin/kotlinx.coroutines) inspired by [RxRedux](https://github.com/freeletics/rxredux).
 
@@ -18,7 +18,7 @@ Opinionated [Redux](https://redux.js.org/) implementation using [Kotlin](https:/
 
 ### Gradle
 
-All release artifacts are hosted on [Jitpack](https://jitpack.io/#OrderIn/CoRedux/):
+All release artifacts are hosted on [Jitpack](https://jitpack.io/#orderin/coredux/):
 ```gradle
 allprojects {
     repositories {
@@ -28,14 +28,14 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.OrderIn.CoRedux:core:1.0'
+    implementation 'com.github.orderin.coredux:core:1.0'
 }
 ```
 
 ### Additional artifacts
 
 Following additional artifacts are also available:
-- `com.github.OrderIn.CoRedux:common:1.0` - provides abstract logger `LogSink` implementation
+- `com.github.orderin.coredux:common:1.0` - provides abstract logger `LogSink` implementation
 
 ## What is CoRedux
 
