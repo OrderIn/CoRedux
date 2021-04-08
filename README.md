@@ -35,7 +35,7 @@ dependencies {
 ### Additional artifacts
 
 Following additional artifacts are also available:
-- `com.github.OKatrych.CoRedux:common:1.0` - provides abstract logger `LogSink` implementation
+- `com.github.OrderIn.CoRedux:common:1.0` - provides abstract logger `LogSink` implementation
 
 ## What is CoRedux
 
