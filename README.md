@@ -1,6 +1,6 @@
 # CoRedux
 
-[![](https://jitpack.io/v/OKatrych/CoRedux.svg)](https://jitpack.io/#OKatrych/CoRedux)
+[![](https://jitpack.io/v/OrderIn/CoRedux.svg)](https://jitpack.io/#OrderIn/CoRedux)
 
 Opinionated [Redux](https://redux.js.org/) implementation using [Kotlin](https://kotlinlang.org/) [coroutines](https://github.com/Kotlin/kotlinx.coroutines) inspired by [RxRedux](https://github.com/freeletics/rxredux).
 
@@ -18,7 +18,7 @@ Opinionated [Redux](https://redux.js.org/) implementation using [Kotlin](https:/
 
 ### Gradle
 
-All release artifacts are hosted on [Jitpack](https://jitpack.io/#OKatrych/CoRedux/):
+All release artifacts are hosted on [Jitpack](https://jitpack.io/#OrderIn/CoRedux/):
 ```gradle
 allprojects {
     repositories {
@@ -28,7 +28,7 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.OKatrych.CoRedux:core:1.0'
+    implementation 'com.github.OrderIn.CoRedux:core:1.0'
 }
 ```
 
