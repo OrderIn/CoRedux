@@ -15,9 +15,8 @@ typealias StateAccessor<S> = () -> S
  * or it may take time to do it.
  *
  * @param S states type
- * @param A actions type
  */
-interface SideEffect<S : Any, A : Any> {
+interface SideEffect<S : Any> {
     /**
      * Preferably _unique per store instance_ name for side effect.
      */
@@ -40,9 +39,9 @@ interface SideEffect<S : Any, A : Any> {
      * @param logger [SideEffectLogger] instance that should be used to log events
      */
     fun CoroutineScope.start(
-        input: ReceiveChannel<A>,
+        input: ReceiveChannel<Action>,
         stateAccessor: StateAccessor<S>,
-        output: SendChannel<A>,
+        output: SendChannel<Action>,
         logger: SideEffectLogger
     ) : Job
 }

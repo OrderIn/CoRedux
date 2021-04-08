@@ -2,9 +2,7 @@ package com.freeletics.coredux
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
@@ -140,7 +138,6 @@ sealed class LogEvent {
     }
 }
 
-@UseExperimental(ExperimentalCoroutinesApi::class, ObsoleteCoroutinesApi::class)
 internal class Logger(
     private val storeName: String,
     scope: CoroutineScope,
@@ -162,11 +159,13 @@ internal class Logger(
 
     internal fun logEvent(event: () -> LogEvent) {
         if (loggingEnabled) {
-            inputLogEventsChannel.offer(LogEntry(
-                storeName,
-                System.currentTimeMillis(),
-                event()
-            ))
+            inputLogEventsChannel.offer(
+                LogEntry(
+                    storeName,
+                    System.currentTimeMillis(),
+                    event()
+                )
+            )
         }
     }
 

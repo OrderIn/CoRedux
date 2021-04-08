@@ -11,11 +11,17 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BroadcastChannel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import kotlin.concurrent.read
-import kotlin.concurrent.write
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
+import kotlin.reflect.KClass
 
 /**
  * A [createStore] is a Kotlin coroutine based implementation of Redux and redux.js.org.
@@ -31,19 +37,17 @@ import kotlin.concurrent.write
  * To disable logging, use [emptyList] (default).
  * @param reducer The reducer.  See [Reducer].
  * @param S The type of the State
- * @param A The type of the Actions
  *
  * @return instance of [Store] object
  */
-@UseExperimental(ExperimentalCoroutinesApi::class)
-fun <S: Any, A: Any> CoroutineScope.createStore(
+fun <S : Any> CoroutineScope.createStore(
     name: String,
     initialState: S,
-    sideEffects: List<SideEffect<S, A>> = emptyList(),
+    sideEffects: List<SideEffect<S>> = emptyList(),
     launchMode: CoroutineStart = CoroutineStart.LAZY,
     logSinks: List<LogSink> = emptyList(),
-    reducer: Reducer<S, A>
-): Store<S, A> = createStoreInternal(
+    reducer: Reducer<S>
+): Store<S> = createStoreInternal(
     name,
     initialState,
     sideEffects,
@@ -56,19 +60,19 @@ fun <S: Any, A: Any> CoroutineScope.createStore(
 /**
  * Allows to override any store configuration.
  */
-@UseExperimental(ExperimentalCoroutinesApi::class)
-internal fun <S: Any, A: Any> CoroutineScope.createStoreInternal(
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun <S : Any> CoroutineScope.createStoreInternal(
     name: String,
     initialState: S,
-    sideEffects: List<SideEffect<S, A>> = emptyList(),
+    sideEffects: List<SideEffect<S>> = emptyList(),
     launchMode: CoroutineStart = CoroutineStart.LAZY,
     logSinks: List<LogSink> = emptyList(),
     logsDispatcher: CoroutineDispatcher = Dispatchers.Default,
-    reducer: Reducer<S, A>
-): Store<S, A> {
+    reducer: Reducer<S>
+): Store<S> {
     val logger = Logger(name, this, logSinks.map { it.sink }, logsDispatcher)
-    val actionsReducerChannel = Channel<A>(Channel.UNLIMITED)
-    val actionsSideEffectsChannel = BroadcastChannel<A>(sideEffects.size + 1)
+    val actionsReducerChannel = Channel<Action>(Channel.UNLIMITED)
+    val actionsSideEffectsChannel = BroadcastChannel<Action>(sideEffects.size + 1)
 
     coroutineContext[Job]?.invokeOnCompletion {
         logger.logAfterCancel { LogEvent.StoreFinished }
@@ -77,7 +81,7 @@ internal fun <S: Any, A: Any> CoroutineScope.createStoreInternal(
     }
 
     logger.logEvent { LogEvent.StoreCreated }
-    return CoreduxStore(actionsReducerChannel) { stateDispatcher ->
+    return CoreduxStore(actionsReducerChannel, initialState) { stateDispatcher ->
         // Creating reducer coroutine
         launch(
             start = launchMode,
@@ -88,12 +92,12 @@ internal fun <S: Any, A: Any> CoroutineScope.createStoreInternal(
 
             // Sending initial state
             logger.logEvent { LogEvent.ReducerEvent.DispatchState(currentState) }
-            stateDispatcher(currentState)
+            stateDispatcher(INITIAL, currentState)
 
             // Starting side-effects coroutines
             sideEffects.forEach { sideEffect ->
                 logger.logEvent { LogEvent.SideEffectEvent.Start(sideEffect.name) }
-                with (sideEffect) {
+                with(sideEffect) {
                     start(
                         actionsSideEffectsChannel.openSubscription(),
                         { currentState },
@@ -113,7 +117,7 @@ internal fun <S: Any, A: Any> CoroutineScope.createStoreInternal(
                         throw ReducerException(currentState, action, e)
                     }
                     logger.logEvent { LogEvent.ReducerEvent.DispatchState(currentState) }
-                    stateDispatcher(currentState)
+                    stateDispatcher(action, currentState)
 
                     logger.logEvent { LogEvent.ReducerEvent.DispatchToSideEffects(action) }
                     actionsSideEffectsChannel.send(action)
@@ -128,7 +132,7 @@ internal fun <S: Any, A: Any> CoroutineScope.createStoreInternal(
 /**
  * Provides methods to interact with [createStore] instance.
  */
-interface Store<S : Any, A : Any> {
+interface Store<S : Any> {
     /**
      * Dispatches new actions to given [createStore] instance.
      *
@@ -136,47 +140,32 @@ interface Store<S : Any, A : Any> {
      * action will consumed on [createStore] [CoroutineScope] context.
      *
      * If `launchMode` for [createStore] is [CoroutineStart.LAZY] dispatched actions will be collected and passed
-     * to reducer on first [subscribe] call.
+     * to reducer on first [onStateChange] call.
      */
-    fun dispatch(action: A)
+    fun dispatch(action: Action)
 
-    /**
-     * Add new [StateReceiver] to the store.
-     *
-     * It is ok to call this method multiple times - each call will add a new [StateReceiver].
-     */
-    fun subscribe(subscriber: StateReceiver<S>)
+    fun onStateChange(): StateFlow<S>
 
-    /**
-     * Remove previously added via [subscriber] [StateReceiver].
-     */
-    fun unsubscribe(subscriber: StateReceiver<S>)
+    fun <T : Action> on(actionClass: KClass<T>): Flow<T>
 }
 
-private class CoreduxStore<S: Any, A: Any>(
-    private val actionsDispatchChannel: SendChannel<A>,
-    reducerCoroutineBuilder: ((S) -> Unit) -> Job
-) : Store<S, A> {
-    private var stateReceiversList = emptyList<StateReceiver<S>>()
+private class CoreduxStore<S : Any>(
+    private val actionsDispatchChannel: SendChannel<Action>,
+    private val initialState: S,
+    reducerCoroutineBuilder: ((action: Action, newState: (S)) -> Unit) -> Job
+) : Store<S> {
+    private val stateFlow = MutableStateFlow(initialState)
+    private val actionFlow = MutableStateFlow<Any>(INITIAL)
 
-    private val lock = ReentrantReadWriteLock()
+    private val lock = ReentrantLock(true)
 
-    private val reducerCoroutine = reducerCoroutineBuilder { newState ->
-        lock.read {
-            stateReceiversList.forEach {
-                it(newState)
-            }
-        }
-    }.also {
-        it.invokeOnCompletion {
-            lock.write {
-                stateReceiversList = emptyList()
-            }
-        }
+    private val reducerCoroutine = reducerCoroutineBuilder { action, newState ->
+        actionFlow.value = action
+        stateFlow.value = newState
     }
 
-    @UseExperimental(ExperimentalCoroutinesApi::class)
-    override fun dispatch(action: A) {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun dispatch(action: Action) {
         if (actionsDispatchChannel.isClosedForSend) throw IllegalStateException("CoroutineScope is cancelled")
 
         if (!actionsDispatchChannel.offer(action)) {
@@ -184,24 +173,24 @@ private class CoreduxStore<S: Any, A: Any>(
         }
     }
 
-
-    override fun subscribe(subscriber: StateReceiver<S>) {
+    override fun onStateChange(): StateFlow<S> {
         if (reducerCoroutine.isCompleted) throw IllegalStateException("CoroutineScope is cancelled")
 
-        lock.write {
-            val receiversIsEmpty = stateReceiversList.isEmpty()
-            stateReceiversList += subscriber
-            if (receiversIsEmpty &&
-                !reducerCoroutine.isActive) {
+        lock.withLock {
+            if (stateFlow.value == initialState && !reducerCoroutine.isActive) {
                 reducerCoroutine.start()
             }
         }
+
+        return stateFlow.asStateFlow()
     }
 
-    override fun unsubscribe(subscriber: StateReceiver<S>) {
-        lock.write {
-            stateReceiversList -= subscriber
-        }
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : Action> on(actionClass: KClass<T>): Flow<T> {
+        if (reducerCoroutine.isCompleted) throw IllegalStateException("CoroutineScope is cancelled")
+        return actionFlow.asStateFlow()
+            .filter { (it::class == actionClass) }
+            .map { it as T }
     }
 }
 
@@ -212,9 +201,8 @@ private class CoreduxStore<S: Any, A: Any>(
  * **Note**: Implementations of [Reducer] must be fast and _lock-free_.
  *
  * @param S The type of the state
- * @param A The type of the Actions
  */
-typealias Reducer<S, A> = (currentState: S, newAction: A) -> S
+typealias Reducer<S> = (currentState: S, newAction: Action) -> S
 
 /**
  * Wraps [Reducer] call exception.
@@ -224,10 +212,3 @@ class ReducerException(
     action: Any,
     cause: Throwable
 ) : RuntimeException("Exception was thrown by reducer, state = '$state', action = '$action'", cause)
-
-/**
- * Type alias for a updated state receiver function.
- *
- * State update will always be received on [createStore] [CoroutineScope] thread.
- */
-typealias StateReceiver<S> = (newState: S) -> Unit

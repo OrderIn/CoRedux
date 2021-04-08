@@ -16,7 +16,7 @@ import kotlinx.coroutines.channels.actor
 abstract class LoggerLogSink(
     scope: CoroutineScope
 ) : LogSink {
-    @UseExperimental(ObsoleteCoroutinesApi::class)
+    @OptIn(ObsoleteCoroutinesApi::class)
     override val sink: SendChannel<LogEntry> = scope.actor {
         val startTimes = mutableMapOf<String, Long>()
         for (logEntry in channel) {

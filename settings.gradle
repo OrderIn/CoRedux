@@ -1,5 +1,2 @@
-include ':sample', 
-        ':library:core',
-        ':library:log:common',
-        ':library:log:android',
-        ':library:log:timber'
+include ':library:core',
+        ':library:log:common'
