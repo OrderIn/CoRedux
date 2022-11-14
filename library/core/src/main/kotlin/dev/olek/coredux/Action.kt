@@ -1,4 +1,4 @@
-package com.freeletics.coredux
+package dev.olek.coredux
 
 /**
  * Describes action which might change the [CoreduxStore] state.

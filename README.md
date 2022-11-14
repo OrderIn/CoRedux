@@ -12,13 +12,12 @@ Opinionated [Redux](https://redux.js.org/) implementation using [Kotlin](https:/
   - [Basic concept](#basic-concept)
   - [Side effects](#side-effects)
   - [Implementation details](#implementation-details)
-  - [Logging](#logging)
 
 ## Getting started
 
 ### Gradle
 
-All release artifacts are hosted on [Jitpack](https://jitpack.io/#orderin/coredux/):
+All release artifacts are hosted on [Jitpack](https://jitpack.io/#okatrych/coredux/):
 ```gradle
 allprojects {
     repositories {
@@ -28,14 +27,9 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.orderin.coredux:core:1.0'
+    implementation 'com.github.okatrych.coredux:core:1.0'
 }
 ```
-
-### Additional artifacts
-
-Following additional artifacts are also available:
-- `com.github.orderin.coredux:common:1.0` - provides abstract logger `LogSink` implementation
 
 ## What is CoRedux
 
@@ -132,20 +126,15 @@ val sideEffect = object : SideEffect<Int, CalculatorAction> {
     override val name: String = "network logger"
 
     override fun CoroutineScope.start(
-        input: ReceiveChannel<CalculatorAction>,
+        input: SharedFlow<CalculatorAction>,
         stateAccessor: StateAccessor<Int>,
         output: SendChannel<CalculatorAction>,
-        logger: SideEffectLogger
     ): Job = launch(context = CoroutineName(name)) {
-        for (inputAction in input) {
-            logger.logSideEffectEvent { LogEvent.SideEffectEvent.InputAction(name, inputAction) }
+        input.collect { inputAction ->
             if (inputAction is CalculatorAction.Add &&
                 stateAccessor() >= 0) {
                 launch {
                     val response = makeNetworkCall()
-                    logger.logSideEffectEvent {
-                        LogEvent.SideEffectEvent.Custom(name, "Received network response: $response")
-                    }
                     if (response == 200) {
                         val outputAction = CalculatorAction.Deduct(1)
                         logger.logSideEffectEvent { LogEvent.SideEffectEvent.DispatchingToReducer(name, outputAction) }
@@ -232,16 +221,5 @@ On each new action "manager" coroutine is sequentially:
 - sends updated current state to all `StateReceiver`s
 - broadcast input action to all side effects "workers" coroutines
 
-If a side effect emtis a new action this action is added at the end of the internal queue
+If a side effect emits a new action this action is added at the end of the internal queue
 of actions waiting to be dispatched to reducer and to other side effects.
-
-### Logging
-
-To log events you have to add a `LogSink` to your store.
-Actually, you can add multiple `LogSink`s if you want to add multiple type of logging.
-You do that by passing a list of `LogSink`s in `createStore( logSinks = listOf(logSink1, logSink2, ... )`.
-
-Types of log events are limited and defined by `LogEvent` sealed class hierarchy.
-
-`Store` instance will automatically send log events, while `SideEffect` implementations
-should send log events by themselfs, using provided `logger`.

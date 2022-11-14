@@ -1,4 +1,4 @@
-package com.freeletics.coredux
+package dev.olek.coredux
 
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
