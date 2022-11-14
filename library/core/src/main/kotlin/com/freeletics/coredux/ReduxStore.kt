@@ -1,19 +1,18 @@
 package com.freeletics.coredux
 
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.BroadcastChannel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -27,14 +26,10 @@ import kotlin.reflect.KClass
  * A [createStore] is a Kotlin coroutine based implementation of Redux and redux.js.org.
  *
  * @param name preferably unique name associated with this [Store] instance.
- * It will be used as a `name` param for [LogEntry] to distinguish log events from different store
- * instances.
  * @param initialState The initial state. This one will be emitted directly in onSubscribe()
  * @param sideEffects The sideEffects. See [SideEffect].
  * @param launchMode store launch mode. Default is [CoroutineStart.LAZY] - when first [StateReceiver]
  * will added to [Store], it will start processing input actions.
- * @param logSinks list of [LogSink] implementations, that will receive log events.
- * To disable logging, use [emptyList] (default).
  * @param reducer The reducer.  See [Reducer].
  * @param S The type of the State
  *
@@ -45,82 +40,66 @@ fun <S : Any> CoroutineScope.createStore(
     initialState: S,
     sideEffects: List<SideEffect<S>> = emptyList(),
     launchMode: CoroutineStart = CoroutineStart.LAZY,
-    logSinks: List<LogSink> = emptyList(),
     reducer: Reducer<S>
 ): Store<S> = createStoreInternal(
     name,
     initialState,
     sideEffects,
     launchMode,
-    logSinks,
-    Dispatchers.Default,
     reducer
 )
 
 /**
  * Allows to override any store configuration.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 internal fun <S : Any> CoroutineScope.createStoreInternal(
     name: String,
     initialState: S,
     sideEffects: List<SideEffect<S>> = emptyList(),
     launchMode: CoroutineStart = CoroutineStart.LAZY,
-    logSinks: List<LogSink> = emptyList(),
-    logsDispatcher: CoroutineDispatcher = Dispatchers.Default,
     reducer: Reducer<S>
 ): Store<S> {
-    val logger = Logger(name, this, logSinks.map { it.sink }, logsDispatcher)
     val actionsReducerChannel = Channel<Action>(Channel.UNLIMITED)
-    val actionsSideEffectsChannel = BroadcastChannel<Action>(sideEffects.size + 1)
+    val actionsSideEffectsChannel = MutableSharedFlow<Action>(
+        extraBufferCapacity = sideEffects.size + 1
+    )
 
     coroutineContext[Job]?.invokeOnCompletion {
-        logger.logAfterCancel { LogEvent.StoreFinished }
         actionsReducerChannel.close(it)
-        actionsSideEffectsChannel.close(it)
     }
 
-    logger.logEvent { LogEvent.StoreCreated }
     return CoreduxStore(actionsReducerChannel, initialState) { stateDispatcher ->
         // Creating reducer coroutine
         launch(
             start = launchMode,
             context = CoroutineName("$name reducer")
         ) {
-            logger.logEvent { LogEvent.ReducerEvent.Start }
             var currentState = initialState
 
             // Sending initial state
-            logger.logEvent { LogEvent.ReducerEvent.DispatchState(currentState) }
             stateDispatcher(INITIAL, currentState)
 
             // Starting side-effects coroutines
             sideEffects.forEach { sideEffect ->
-                logger.logEvent { LogEvent.SideEffectEvent.Start(sideEffect.name) }
                 with(sideEffect) {
                     start(
-                        actionsSideEffectsChannel.openSubscription(),
+                        actionsSideEffectsChannel.asSharedFlow(),
                         { currentState },
-                        actionsReducerChannel,
-                        logger
+                        actionsReducerChannel
                     )
                 }
             }
 
             try {
                 for (action in actionsReducerChannel) {
-                    logger.logEvent { LogEvent.ReducerEvent.InputAction(action, currentState) }
                     currentState = try {
                         reducer(currentState, action)
                     } catch (e: Throwable) {
-                        logger.logEvent { LogEvent.ReducerEvent.Exception(e) }
                         throw ReducerException(currentState, action, e)
                     }
-                    logger.logEvent { LogEvent.ReducerEvent.DispatchState(currentState) }
                     stateDispatcher(action, currentState)
 
-                    logger.logEvent { LogEvent.ReducerEvent.DispatchToSideEffects(action) }
-                    actionsSideEffectsChannel.send(action)
+                    actionsSideEffectsChannel.emit(action)
                 }
             } finally {
                 if (isActive) cancel()
@@ -168,7 +147,7 @@ private class CoreduxStore<S : Any>(
     override fun dispatch(action: Action) {
         if (actionsDispatchChannel.isClosedForSend) throw IllegalStateException("CoroutineScope is cancelled")
 
-        if (!actionsDispatchChannel.offer(action)) {
+        if (!actionsDispatchChannel.trySend(action).isSuccess) {
             throw IllegalStateException("Input actions overflow - buffer is full")
         }
     }

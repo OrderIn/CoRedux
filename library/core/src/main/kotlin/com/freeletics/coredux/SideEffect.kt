@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.flow.SharedFlow
 
 /**
  * Returns a __current__ state of [createStore].
@@ -36,12 +37,10 @@ interface SideEffect<S : Any> {
      * @param stateAccessor provides a way to get current state of [createStore]
      * @param output a [SendChannel] of actions that this side effect should use to produce new actions. If side effect
      * doesn't want to handle new action from [input] channel - it could ignore sending action to this [output] channel
-     * @param logger [SideEffectLogger] instance that should be used to log events
      */
     fun CoroutineScope.start(
-        input: ReceiveChannel<Action>,
+        input: SharedFlow<Action>,
         stateAccessor: StateAccessor<S>,
         output: SendChannel<Action>,
-        logger: SideEffectLogger
     ) : Job
 }

@@ -1,30 +1,27 @@
 apply plugin: 'java-library'
 apply plugin: 'kotlin'
-
-test {
-    useJUnitPlatform {
-        includeEngines "spek2"
-    }
-}
+apply plugin: 'maven-publish'
 
 dependencies {
     api libraries.kotlinStdlib
     api libraries.coroutinesCore
-
-    testImplementation testLibraries.spek2Dsl
-    testImplementation testLibraries.junit
-    testImplementation libraries.kotlinReflect
-    testImplementation testLibraries.coroutinesTest
-    testRuntimeOnly testLibraries.spek2Junit5Runner
-    testRuntimeOnly testLibraries.junit5Engine
-
 }
 
-sourceCompatibility = "1.7"
-targetCompatibility = "1.7"
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
 
-tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile.class).all {
-    kotlinOptions {
-        freeCompilerArgs = ["-Xuse-experimental=kotlin.Experimental"]
+group GROUP
+version VERSION_NAME
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components["java"]
+        }
     }
 }
+
+sourceCompatibility = "1.8"
+targetCompatibility = "1.8"

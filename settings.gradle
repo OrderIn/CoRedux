@@ -1,2 +1,3 @@
-include ':library:core',
-        ':library:log:common'
+include ':library:core'
+
+rootProject.name = 'core'
