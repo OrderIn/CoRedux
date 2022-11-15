@@ -27,7 +27,7 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.okatrych.coredux:core:1.0'
+    implementation 'com.github.orderin:coredux:1.0.0'
 }
 ```
 
